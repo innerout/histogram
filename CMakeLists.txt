@@ -48,6 +48,8 @@ else()
   message("Could not find the program include-what-you-use")
 endif()
 
+add_subdirectory(tests)
+
 install(
   TARGETS ${PROJECT_NAME}
   EXPORT histogram
