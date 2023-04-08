@@ -4,6 +4,8 @@ project(
   VERSION 1.0.0
   LANGUAGES C)
 
+set (CMAKE_C_STANDARD 11)
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_C_CLANG_TIDY "")
 option(BUILD_SHARED_LIBS
@@ -31,6 +33,7 @@ include(GNUInstallDirs)
 set(SOURCE_FILES src/histogram.c)
 
 add_library(${PROJECT_NAME} ${SOURCE_FILES})
+target_link_libraries(${PROJECT_NAME} m)
 target_include_directories(
   ${PROJECT_NAME}
   PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -48,6 +51,7 @@ else()
   message("Could not find the program include-what-you-use")
 endif()
 
+enable_testing()
 add_subdirectory(tests)
 
 install(
