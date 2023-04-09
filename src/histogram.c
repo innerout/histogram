@@ -2,14 +2,38 @@
 #include <stddef.h>
 #include <assert.h>
 #include <math.h>
+#include <limits.h>
+#include <stdio.h>
 
-static size_t lower_bound(const atomic_uint_fast64_t buckets[], const uint64_t size, const uint64_t value);
+static size_t lower_bound(const uint64_t buckets[], const uint64_t size, const uint64_t value);
 static size_t histogram_get_bucket_index(const Histogram *histogram, uint64_t value);
-static double percentile_histogram(Histogram *histogram, double p);
+static void initialize_bucket_map(Histogram *histogram)
+{
+    histogram->bucket_map.bucket_value[0] = 1;
+    histogram->bucket_map.bucket_value[1] = 2;
+    size_t num_elements = 1;
+
+    double bucket_val = (double)histogram->bucket_map.bucket_value[num_elements];
+    while ((bucket_val = 1.5 * bucket_val) <= (double)UINT64_MAX)
+    {
+        histogram->bucket_map.bucket_value[++num_elements] = (uint64_t)bucket_val;
+        uint64_t pow_of_ten = 1;
+        while (histogram->bucket_map.bucket_value[num_elements] / 10 > 10)
+        {
+            histogram->bucket_map.bucket_value[num_elements] /= 10;
+            pow_of_ten *= 10;
+        }
+        histogram->bucket_map.bucket_value[num_elements] *= pow_of_ten;
+    }
+    histogram->bucket_map.maxBucketValue = histogram->bucket_map.bucket_value[num_elements];
+    histogram->bucket_map.minBucketValue = histogram->bucket_map.bucket_value[0];
+}
 
 // This function initializes a histogram to have all 0's in it.
 void initialize_histogram(Histogram *histogram)
 {
+    initialize_bucket_map(histogram);
+    *(uint64_t *)&histogram->num_buckets = BUCKETSIZE;
     atomic_init(&histogram->min, UINT64_MAX);
     atomic_init(&histogram->max, 0);
     atomic_init(&histogram->num, 0);
@@ -25,10 +49,7 @@ void clear_histogram(Histogram *histogram)
     initialize_histogram(histogram);
 }
 
-/* A histogram is a collection of counters that are arranged in bins. This
- * function adds the given value to the appropriate bin. If the value is
- * too large to fit in any bin, it is added to the overflow bin. */
-void add_histogram(Histogram *histogram, uint64_t value)
+void add_value_histogram(Histogram *histogram, uint64_t value)
 {
     atomic_fetch_add_explicit(&histogram->buckets[histogram_get_bucket_index(histogram, value)], 1, memory_order_relaxed);
     uint64_t min = atomic_load_explicit(&histogram->min, memory_order_relaxed);
@@ -121,7 +142,6 @@ double standard_deviation_histogram(Histogram *histogram)
         (double)num(histogram); // Use double to avoid integer overflow
     if (cur_num == 0.0)
         return 0.0;
-
     double cur_sum = (double)(sum(histogram));
     double cur_sum_squares = (double)(sum_squares(histogram));
 
@@ -139,7 +159,7 @@ double standard_deviation_histogram(Histogram *histogram)
 // the value of the data in the bin that contains the p*Nth data point. The
 // variable histogram->bin_size contains the width of each bin. The variable
 // histogram->min contains the minimum value of the data that was histogrammed.
-static double percentile_histogram(Histogram *histogram, double p)
+double percentile_histogram(Histogram *histogram, double p)
 {
     double threshold = num(histogram) * (p / 100.0);
     uint64_t cumulative_sum = 0;
@@ -177,10 +197,13 @@ static double percentile_histogram(Histogram *histogram, double p)
 // Needs fixing
 static size_t histogram_get_bucket_index(const Histogram *histogram, uint64_t value)
 {
-    return lower_bound(histogram->buckets, histogram->num_buckets, value);
+    if (value > histogram->bucket_map.maxBucketValue)
+        return BUCKETSIZE - 1;
+
+    return lower_bound(histogram->bucket_map.bucket_value, BUCKETSIZE, value);
 }
 
-static size_t lower_bound(const atomic_uint_fast64_t buckets[], const uint64_t size, const uint64_t value)
+static size_t lower_bound(const uint64_t buckets[], const uint64_t size, const uint64_t value)
 {
     uint64_t mid;
 
