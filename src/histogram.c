@@ -28,7 +28,6 @@ static void initialize_bucket_map(Histogram *histogram)
     histogram->bucket_map.minBucketValue = histogram->bucket_map.bucket_value[0];
 }
 
-// This function initializes a histogram to have all 0's in it.
 void initialize_histogram(Histogram *histogram)
 {
     initialize_bucket_map(histogram);
@@ -42,7 +41,6 @@ void initialize_histogram(Histogram *histogram)
         atomic_init(&histogram->buckets[i], 0);
 }
 
-/* Clears the histogram, setting all values to zero. */
 void clear_histogram(Histogram *histogram)
 {
     initialize_histogram(histogram);
@@ -63,67 +61,44 @@ void add_value_histogram(Histogram *histogram, uint64_t value)
     atomic_fetch_add_explicit(&histogram->sum_squares, value * value, memory_order_relaxed);
 }
 
-// Returns the upper bound of the bucket at the given index. If the index is
-// equal to the number of buckets, then the return value is the upper bound of
-// the overflow bucket.
 uint64_t bucket_at(const Histogram *histogram, size_t index)
 {
     return atomic_load_explicit(&histogram->buckets[index], memory_order_relaxed);
 }
 
-// This function computes the minimum value of the histogram
-// (the histogram's "minimum value" is the smallest value that
-// the histogram contains).
 uint64_t min(const Histogram *histogram)
 {
     return atomic_load_explicit(&histogram->min, memory_order_relaxed);
 }
 
-/**
- * @brief Get the maximum value in a histogram
- * @param histogram The histogram
- * @return The maximum value
- */
 uint64_t max(const Histogram *histogram)
 {
     return atomic_load_explicit(&histogram->max, memory_order_relaxed);
 }
 
-/* Returns the number of elements in the histogram. */
 uint64_t num(const Histogram *histogram)
 {
     return atomic_load_explicit(&histogram->num, memory_order_relaxed);
 }
 
-// Computes the sum of the elements in a histogram
-// histogram - Pointer to the histogram
 uint64_t sum(const Histogram *histogram)
 {
     return atomic_load_explicit(&histogram->sum, memory_order_relaxed);
 }
 
-// Computes the sum of the squares of the histogram elements.
-// histogram: Histogram for which to compute the sum of squares.
 uint64_t sum_squares(const Histogram *histogram)
 {
     return atomic_load_explicit(&histogram->sum_squares, memory_order_relaxed);
 }
 
-// This function returns the bucket limit for a given index in the histogram.
-// The bucket limit is the upper bound of the bucket, so for example if the
-// bucket limits are [0, 10, 20, 30] then the bucket limit of index 2 is 20. The
-// bucket limits are stored in the histogram as an array of uint64_t values, one
-// for each bucket.
 uint64_t bucket_limit(const Histogram *histogram, const size_t index)
 {
     assert(index < histogram->num_buckets);
     return histogram->bucket_map.bucket_value[index];
 }
 
-/* Returns the median value of a histogram. */
 double median_histogram(Histogram *histogram) { return percentile_histogram(histogram, 50.0); }
 
-/* Returns the average value of a histogram. */
 double average_histogram(Histogram *histogram)
 {
     uint64_t cur_num = num(histogram);
@@ -134,7 +109,6 @@ double average_histogram(Histogram *histogram)
     return (double)cur_sum / (double)cur_num;
 }
 
-/* Returns the standard deviation value of a histogram. */
 double standard_deviation_histogram(Histogram *histogram)
 {
     double cur_num =
@@ -150,14 +124,6 @@ double standard_deviation_histogram(Histogram *histogram)
     return sqrt(variance > 0.0 ? variance : 0.0);
 }
 
-// This function computes the pth percentile of a histogram.  The histogram is
-// an array of the number of points in each bin.  The number of points in each
-// bin is proportional to the density of points in that bin.  The function
-// returns the value of the data in the bin that contains the pth percentile of
-// the data. The variable p is a number between 0 and 1.  The function returns
-// the value of the data in the bin that contains the p*Nth data point. The
-// variable histogram->bin_size contains the width of each bin. The variable
-// histogram->min contains the minimum value of the data that was histogrammed.
 double percentile_histogram(Histogram *histogram, double p)
 {
     double threshold = num(histogram) * (p / 100.0);
@@ -193,7 +159,6 @@ double percentile_histogram(Histogram *histogram, double p)
     return (double)max(histogram);
 }
 
-// Needs fixing
 static size_t histogram_get_bucket_index(const Histogram *histogram, uint64_t value)
 {
     if (value > histogram->bucket_map.maxBucketValue)
