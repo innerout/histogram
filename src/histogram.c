@@ -3,7 +3,6 @@
 #include <assert.h>
 #include <math.h>
 #include <limits.h>
-#include <stdio.h>
 
 static size_t lower_bound(const uint64_t buckets[], const uint64_t size, const uint64_t value);
 static size_t histogram_get_bucket_index(const Histogram *histogram, uint64_t value);

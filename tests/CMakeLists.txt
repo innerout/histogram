@@ -1,4 +1,4 @@
 include_directories(../include)
-add_executable(unit_test unit_test.c)
-target_link_libraries(unit_test histogram)
-add_test(unit_test unit_test)
+add_executable(example example.c)
+target_link_libraries(example histogram)
+add_test(example example)
